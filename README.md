@@ -8,6 +8,7 @@ and normal full-capacity charging.
 
 - Uses UPower's standard D-Bus API.
 - Battery Protection entry under Trigger → Hardware.
+- Optional bar icon, hidden by default with remembered visibility.
 - Shows `battery-lock` while protection is enabled.
 - Shows `battery-lock-open` while protection is disabled.
 - Provides a tooltip with the current state and configured limit.
@@ -46,21 +47,37 @@ Add the Battery Protection entry to Trigger → Hardware:
 ~/.config/omarchy/plugins/andrewf.battery-protection/install.sh
 ```
 
-The widget is added to the bar's right section by default. Its visibility and
-position can be managed with Omarchy's normal bar commands.
+The widget is placed immediately before Omarchy's battery widget. Its icon is
+hidden by default.
 
 ## Usage
 
 Select Trigger → Hardware → Battery Protection, or click the bar icon, to
 toggle the configured charge limit.
 
-The bar icon indicates the current state:
+When visible, the bar icon indicates the current state without changing color:
 
 - `battery-lock` — protection is enabled; clicking disables it.
 - `battery-lock-open` — protection is disabled; clicking enables it.
 
-The bundled unprivileged helper can also query or change the standard UPower
-state directly:
+Toggle the optional icon from the command line:
+
+```sh
+omarchy-shell andrewf.battery-protection toggleIcon
+```
+
+You can also control or query it explicitly:
+
+```sh
+omarchy-shell andrewf.battery-protection showIcon
+omarchy-shell andrewf.battery-protection hideIcon
+omarchy-shell andrewf.battery-protection getIconVisible
+```
+
+Icon visibility is saved as `showIcon` on the widget entry in
+`~/.config/omarchy/shell.json` and is preserved across shell restarts.
+
+The bundled helper can also query or change the standard UPower state directly:
 
 ```sh
 ~/.config/omarchy/plugins/andrewf.battery-protection/battery-protection status

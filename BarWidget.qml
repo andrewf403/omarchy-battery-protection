@@ -14,11 +14,16 @@ BarWidget {
   property bool busy: false
   property int chargeLimit: 0
   property string errorText: ""
+  property bool iconOverrideActive: false
+  property bool iconOverrideValue: false
 
   readonly property string helperPath: decodeURIComponent(
     Qt.resolvedUrl("battery-protection").toString().replace(/^file:\/\//, ""))
   readonly property string protectedIcon: "󱞜"
   readonly property string unprotectedIcon: "󱞝"
+  readonly property bool iconVisible: iconOverrideActive
+    ? iconOverrideValue
+    : setting("showIcon", false) === true
   readonly property string tooltip: {
     if (busy) return "Updating battery protection…"
     if (errorText !== "") return "Battery protection error · " + errorText
@@ -52,7 +57,26 @@ BarWidget {
     toggleProc.running = true
   }
 
-  visible: available
+  function parseBoolean(value) {
+    var normalized = String(value || "").trim().toLowerCase()
+    if (["1", "true", "yes", "on", "show", "visible"].indexOf(normalized) !== -1) return true
+    if (["0", "false", "no", "off", "hide", "hidden"].indexOf(normalized) !== -1) return false
+    return null
+  }
+
+  function persistIconVisibility(value) {
+    if (iconSettingsProc.running) return "busy"
+    iconOverrideValue = value
+    iconOverrideActive = true
+    iconSettingsProc.command = [
+      "omarchy", "bar", "set", root.moduleName, "showIcon",
+      value ? "true" : "false", "--json"
+    ]
+    iconSettingsProc.running = true
+    return value ? "showing" : "hiding"
+  }
+
+  visible: available && iconVisible
   implicitWidth: visible ? button.implicitWidth : 0
   implicitHeight: visible ? button.implicitHeight : 0
 
@@ -64,6 +88,17 @@ BarWidget {
     function refresh(): void {
       root.broadcast("refresh")
     }
+
+    function getIconVisible(): string { return root.iconVisible ? "true" : "false" }
+    function setIconVisible(value: string): string {
+      var parsed = root.parseBoolean(value)
+      return parsed === null
+        ? "value must be true or false"
+        : root.persistIconVisibility(parsed)
+    }
+    function showIcon(): string { return root.persistIconVisibility(true) }
+    function hideIcon(): string { return root.persistIconVisibility(false) }
+    function toggleIcon(): string { return root.persistIconVisibility(!root.iconVisible) }
   }
 
   Timer {
@@ -105,12 +140,24 @@ BarWidget {
     }
   }
 
+  Process {
+    id: iconSettingsProc
+    stderr: StdioCollector { id: iconSettingsErrors; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode !== 0) {
+        root.iconOverrideActive = false
+        root.errorText = iconSettingsErrors.text.trim() || "Could not save the bar icon setting"
+      }
+    }
+  }
+
   BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
     text: root.protectedState ? root.protectedIcon : root.unprotectedIcon
     active: root.protectedState
+    useActiveColor: false
     tooltipText: root.tooltip
     onPressed: function(mouseButton) {
       if (mouseButton === Qt.LeftButton) root.toggleProtection()
