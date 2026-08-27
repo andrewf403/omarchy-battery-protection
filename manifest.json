@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "andrewf.battery-protection",
   "name": "Battery Protection",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "Andrii F",
   "license": "MIT",
-  "description": "Toggle UPower's configured battery charge limit from the Omarchy bar.",
+  "description": "Toggle UPower's configured battery charge limit from Trigger or an optional bar icon.",
   "kinds": [
     "bar-widget"
   ],

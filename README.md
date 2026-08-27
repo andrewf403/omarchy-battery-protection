@@ -1,8 +1,8 @@
 # Omarchy Battery Protection
 
-A small Omarchy Quattro bar widget that enables or disables the battery charge
-limit configured by UPower. Click the icon to switch between protected charging
-and normal full-capacity charging.
+An Omarchy Quattro plugin for switching between UPower's protected charging
+limit and normal full-capacity charging from Trigger → Hardware, with an
+optional bar icon that is hidden by default.
 
 ![Battery Protection preview](preview.png)
 
