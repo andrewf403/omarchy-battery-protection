@@ -14,16 +14,12 @@ BarWidget {
   property bool busy: false
   property int chargeLimit: 0
   property string errorText: ""
-  property bool iconOverrideActive: false
-  property bool iconOverrideValue: false
 
   readonly property string helperPath: decodeURIComponent(
     Qt.resolvedUrl("battery-protection").toString().replace(/^file:\/\//, ""))
   readonly property string protectedIcon: "󱞜"
   readonly property string unprotectedIcon: "󱞝"
-  readonly property bool iconVisible: iconOverrideActive
-    ? iconOverrideValue
-    : setting("showIcon", false) === true
+  readonly property bool iconVisible: setting("showIcon", false) === true
   readonly property string tooltip: {
     if (busy) return "Updating battery protection…"
     if (errorText !== "") return "Battery protection error · " + errorText
@@ -50,6 +46,22 @@ BarWidget {
     if (!statusProc.running) statusProc.running = true
   }
 
+  function applyConfirmedState(enabledValue, limitValue) {
+    available = true
+    protectedState = String(enabledValue) === "1" || enabledValue === true
+    chargeLimit = Number(limitValue)
+    errorText = ""
+  }
+
+  function syncConfirmedState(enabledValue, limitValue) {
+    var items = bar && typeof bar.moduleWidgets === "function"
+      ? bar.moduleWidgets(moduleName) : [root]
+    for (var i = 0; i < items.length; i++) {
+      if (items[i] && typeof items[i].applyConfirmedState === "function")
+        items[i].applyConfirmedState(enabledValue, limitValue)
+    }
+  }
+
   function toggleProtection() {
     if (!available || busy) return
     busy = true
@@ -65,14 +77,16 @@ BarWidget {
   }
 
   function persistIconVisibility(value) {
-    if (iconSettingsProc.running) return "busy"
-    iconOverrideValue = value
-    iconOverrideActive = true
-    iconSettingsProc.command = [
-      "omarchy", "bar", "set", root.moduleName, "showIcon",
-      value ? "true" : "false", "--json"
-    ]
-    iconSettingsProc.running = true
+    var next = {}
+    for (var key in root.settings) if (key !== "id") next[key] = root.settings[key]
+    next.showIcon = value
+
+    var items = bar && typeof bar.moduleWidgets === "function"
+      ? bar.moduleWidgets(moduleName) : [root]
+    for (var i = 0; i < items.length; i++) {
+      if (items[i] && "settings" in items[i]) items[i].settings = next
+    }
+    if (bar && bar.shell) bar.shell.updateEntryInline(moduleName, next)
     return value ? "showing" : "hiding"
   }
 
@@ -87,6 +101,10 @@ BarWidget {
 
     function refresh(): void {
       root.broadcast("refresh")
+    }
+
+    function syncState(enabled: string, limit: string): void {
+      root.syncConfirmedState(enabled, limit)
     }
 
     function getIconVisible(): string { return root.iconVisible ? "true" : "false" }
@@ -137,17 +155,6 @@ BarWidget {
       if (exitCode !== 0)
         root.errorText = toggleErrors.text.trim() || "Could not update battery protection"
       root.refresh()
-    }
-  }
-
-  Process {
-    id: iconSettingsProc
-    stderr: StdioCollector { id: iconSettingsErrors; waitForEnd: true }
-    onExited: function(exitCode) {
-      if (exitCode !== 0) {
-        root.iconOverrideActive = false
-        root.errorText = iconSettingsErrors.text.trim() || "Could not save the bar icon setting"
-      }
     }
   }
 

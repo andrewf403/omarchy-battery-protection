@@ -12,6 +12,8 @@ and normal full-capacity charging.
 - Shows `battery-lock` while protection is enabled.
 - Shows `battery-lock-open` while protection is disabled.
 - Provides a tooltip with the current state and configured limit.
+- Updates the visible icon immediately after UPower confirms a change.
+- Shows the applied mode and current limit in a Trigger-menu notification.
 - Hides itself when UPower reports that charge limiting is unsupported.
 
 ## Requirements
@@ -53,7 +55,8 @@ hidden by default.
 ## Usage
 
 Select Trigger → Hardware → Battery Protection, or click the bar icon, to
-toggle the configured charge limit.
+toggle the configured charge limit. Trigger-menu changes show a notification
+with the applied mode and charge limit.
 
 When visible, the bar icon indicates the current state without changing color:
 

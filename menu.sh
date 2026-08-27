@@ -53,7 +53,7 @@ install_entry() {
       print "    \"description\": \"Toggle the configured battery charge limit\","
       print "    \"when\": \"~/.config/omarchy/plugins/andrewf.battery-protection/battery-protection supported\","
       print "    \"checked\": \"~/.config/omarchy/plugins/andrewf.battery-protection/battery-protection is-enabled\","
-      print "    \"action\": \"~/.config/omarchy/plugins/andrewf.battery-protection/battery-protection toggle\""
+      print "    \"action\": \"~/.config/omarchy/plugins/andrewf.battery-protection/battery-protection toggle --notify\""
       print "  },"
       print "  " end
       inserted = 1

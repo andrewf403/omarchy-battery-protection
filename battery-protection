@@ -57,9 +57,43 @@ print_status() {
   printf 'device\t%s\n' "$device"
 }
 
+sync_widget_state() {
+  local enabled="$1"
+  local limit="$2"
+  local enabled_value=0
+
+  [[ $enabled == "true" ]] && enabled_value=1
+  if command -v omarchy-shell >/dev/null 2>&1; then
+    omarchy-shell andrewf.battery-protection syncState \
+      "$enabled_value" "$limit" >/dev/null 2>&1 || true
+  fi
+}
+
+notify_applied_state() {
+  local enabled="$1"
+  local limit="$2"
+  local headline="Battery protection disabled"
+  local description="Charging limit set to 100%."
+  local glyph="󱞝"
+
+  if [[ $enabled == "true" ]]; then
+    headline="Battery protection enabled"
+    description="Charging limited to ${limit}%."
+    glyph="󱞜"
+  fi
+
+  if command -v omarchy-notification-send >/dev/null 2>&1; then
+    omarchy-notification-send --app-name "Battery Protection" \
+      -g "$glyph" -t 4000 "$headline" "$description" >/dev/null 2>&1 || true
+  fi
+}
+
 set_protection() {
   local desired="$1"
+  local notify="${2:-0}"
   local device=""
+  local enabled=""
+  local limit=""
 
   device=$(find_supported_battery) || {
     echo "UPower does not report a battery with charge-threshold support" >&2
@@ -70,10 +104,11 @@ set_protection() {
     "$UPOWER_SERVICE" "$device" "$UPOWER_INTERFACE" \
     EnableChargeThreshold b "$desired" >/dev/null
 
+  enabled=$(property_value "$device" ChargeThresholdEnabled)
+  limit=$(property_value "$device" ChargeEndThreshold)
   print_status "$device"
-  if command -v omarchy-shell >/dev/null 2>&1; then
-    omarchy-shell andrewf.battery-protection refresh >/dev/null 2>&1 || true
-  fi
+  sync_widget_state "$enabled" "$limit"
+  (( notify == 0 )) || notify_applied_state "$enabled" "$limit"
 }
 
 case "${1:-}" in
@@ -81,15 +116,22 @@ case "${1:-}" in
     print_status
     ;;
   toggle)
+    notify=0
+    if [[ ${2:-} == "--notify" ]]; then
+      notify=1
+    elif (( $# > 1 )); then
+      echo "Usage: ${0##*/} toggle [--notify]" >&2
+      exit 64
+    fi
     device=$(find_supported_battery) || {
       echo "UPower does not report a battery with charge-threshold support" >&2
       exit 69
     }
     enabled=$(property_value "$device" ChargeThresholdEnabled)
     if [[ $enabled == "true" ]]; then
-      set_protection false
+      set_protection false "$notify"
     else
-      set_protection true
+      set_protection true "$notify"
     fi
     ;;
   enable)
@@ -106,7 +148,7 @@ case "${1:-}" in
     [[ $(property_value "$device" ChargeThresholdEnabled) == "true" ]]
     ;;
   *)
-    echo "Usage: ${0##*/} {status|toggle|enable|disable|supported|is-enabled}" >&2
+    echo "Usage: ${0##*/} {status|toggle [--notify]|enable|disable|supported|is-enabled}" >&2
     exit 64
     ;;
 esac
