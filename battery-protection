@@ -71,6 +71,9 @@ set_protection() {
     EnableChargeThreshold b "$desired" >/dev/null
 
   print_status "$device"
+  if command -v omarchy-shell >/dev/null 2>&1; then
+    omarchy-shell andrewf.battery-protection refresh >/dev/null 2>&1 || true
+  fi
 }
 
 case "${1:-}" in
@@ -95,8 +98,15 @@ case "${1:-}" in
   disable)
     set_protection false
     ;;
+  supported)
+    find_supported_battery >/dev/null
+    ;;
+  is-enabled)
+    device=$(find_supported_battery) || exit 1
+    [[ $(property_value "$device" ChargeThresholdEnabled) == "true" ]]
+    ;;
   *)
-    echo "Usage: ${0##*/} {status|toggle|enable|disable}" >&2
+    echo "Usage: ${0##*/} {status|toggle|enable|disable|supported|is-enabled}" >&2
     exit 64
     ;;
 esac

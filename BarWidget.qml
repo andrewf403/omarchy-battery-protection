@@ -58,6 +58,14 @@ BarWidget {
 
   Component.onCompleted: refresh()
 
+  IpcHandler {
+    target: root.moduleName
+
+    function refresh(): void {
+      root.broadcast("refresh")
+    }
+  }
+
   Timer {
     interval: 30000
     running: true

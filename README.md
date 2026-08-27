@@ -7,6 +7,7 @@ and normal full-capacity charging.
 ## Features
 
 - Uses UPower's standard D-Bus API.
+- Battery Protection entry under Trigger → Hardware.
 - Shows `battery-lock` while protection is enabled.
 - Shows `battery-lock-open` while protection is disabled.
 - Provides a tooltip with the current state and configured limit.
@@ -39,12 +40,21 @@ Install and enable the plugin from GitHub:
 omarchy plugin add https://github.com/andrewf403/omarchy-battery-protection.git --enable
 ```
 
+Add the Battery Protection entry to Trigger → Hardware:
+
+```sh
+~/.config/omarchy/plugins/andrewf.battery-protection/install.sh
+```
+
 The widget is added to the bar's right section by default. Its visibility and
 position can be managed with Omarchy's normal bar commands.
 
 ## Usage
 
-Click the bar icon:
+Select Trigger → Hardware → Battery Protection, or click the bar icon, to
+toggle the configured charge limit.
+
+The bar icon indicates the current state:
 
 - `battery-lock` — protection is enabled; clicking disables it.
 - `battery-lock-open` — protection is disabled; clicking enables it.
@@ -62,14 +72,15 @@ state directly:
 ## Remove
 
 If protection is enabled and you want to restore normal full-capacity charging,
-click the icon once before removal. Then remove the plugin through Omarchy:
+toggle it off before removal. Remove the Trigger entry, then remove the plugin:
 
 ```sh
+~/.config/omarchy/plugins/andrewf.battery-protection/uninstall.sh
 omarchy plugin remove andrewf.battery-protection
 ```
 
-No separate uninstaller is needed. Removing the plugin deletes the widget and
-its bundled helper.
+The first command removes only the menu integration. The second removes the
+widget and its bundled helper.
 
 ## License
 
