@@ -4,6 +4,8 @@ A small Omarchy Quattro bar widget that enables or disables the battery charge
 limit configured by UPower. Click the icon to switch between protected charging
 and normal full-capacity charging.
 
+![Battery Protection preview](preview.png)
+
 ## Features
 
 - Uses UPower's standard D-Bus API.
