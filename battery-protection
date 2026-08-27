@@ -1,0 +1,102 @@
+#!/usr/bin/bash
+
+set -euo pipefail
+
+readonly UPOWER_SERVICE="org.freedesktop.UPower"
+readonly UPOWER_INTERFACE="org.freedesktop.UPower.Device"
+
+property_value() {
+  local device="$1"
+  local property="$2"
+  local type=""
+  local value=""
+
+  read -r type value < <(
+    /usr/bin/busctl --system get-property \
+      "$UPOWER_SERVICE" "$device" "$UPOWER_INTERFACE" "$property"
+  )
+  printf '%s\n' "$value"
+}
+
+find_supported_battery() {
+  local device=""
+  local supported=""
+
+  while IFS= read -r device; do
+    [[ $device == */battery_* ]] || continue
+    supported=$(property_value "$device" ChargeThresholdSupported 2>/dev/null || true)
+    if [[ $supported == "true" ]]; then
+      printf '%s\n' "$device"
+      return 0
+    fi
+  done < <(/usr/bin/upower --enumerate)
+
+  return 1
+}
+
+print_status() {
+  local device="${1:-}"
+  local enabled="false"
+  local limit="0"
+
+  if [[ -z $device ]]; then
+    device=$(find_supported_battery || true)
+  fi
+
+  if [[ -z $device ]]; then
+    printf 'available\t0\n'
+    return 0
+  fi
+
+  enabled=$(property_value "$device" ChargeThresholdEnabled)
+  limit=$(property_value "$device" ChargeEndThreshold)
+
+  printf 'available\t1\n'
+  printf 'enabled\t%s\n' "$([[ $enabled == "true" ]] && printf 1 || printf 0)"
+  printf 'limit\t%s\n' "$limit"
+  printf 'device\t%s\n' "$device"
+}
+
+set_protection() {
+  local desired="$1"
+  local device=""
+
+  device=$(find_supported_battery) || {
+    echo "UPower does not report a battery with charge-threshold support" >&2
+    exit 69
+  }
+
+  /usr/bin/busctl --system call \
+    "$UPOWER_SERVICE" "$device" "$UPOWER_INTERFACE" \
+    EnableChargeThreshold b "$desired" >/dev/null
+
+  print_status "$device"
+}
+
+case "${1:-}" in
+  status)
+    print_status
+    ;;
+  toggle)
+    device=$(find_supported_battery) || {
+      echo "UPower does not report a battery with charge-threshold support" >&2
+      exit 69
+    }
+    enabled=$(property_value "$device" ChargeThresholdEnabled)
+    if [[ $enabled == "true" ]]; then
+      set_protection false
+    else
+      set_protection true
+    fi
+    ;;
+  enable)
+    set_protection true
+    ;;
+  disable)
+    set_protection false
+    ;;
+  *)
+    echo "Usage: ${0##*/} {status|toggle|enable|disable}" >&2
+    exit 64
+    ;;
+esac
