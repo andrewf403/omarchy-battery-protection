@@ -10,12 +10,55 @@ readonly MENU_FILE="$EXTENSIONS_DIR/omarchy-menu.jsonc"
 
 TEMP_CLEANED=""
 TEMP_STAGED=""
+MENU_FD=""
+MENU_IDENTITY=""
 
 cleanup() {
+  [[ -z $MENU_FD ]] || exec {MENU_FD}<&-
   [[ -z $TEMP_CLEANED ]] || rm -f -- "$TEMP_CLEANED"
   [[ -z $TEMP_STAGED ]] || rm -f -- "$TEMP_STAGED"
 }
 trap cleanup EXIT
+
+open_menu_snapshot() {
+  [[ -d $EXTENSIONS_DIR && ! -L $EXTENSIONS_DIR ]] || {
+    echo "Refusing to use non-regular extensions directory: $EXTENSIONS_DIR" >&2
+    exit 1
+  }
+  [[ -e $MENU_FILE || -L $MENU_FILE ]] || {
+    echo "User menu extension file does not exist: $MENU_FILE" >&2
+    echo "Restore it before installing the Trigger menu entry." >&2
+    exit 1
+  }
+  [[ -f $MENU_FILE && ! -L $MENU_FILE ]] || {
+    echo "Refusing to modify non-regular menu file: $MENU_FILE" >&2
+    exit 1
+  }
+
+  exec {MENU_FD}< "$MENU_FILE" || {
+    echo "Could not open menu file: $MENU_FILE" >&2
+    exit 1
+  }
+  [[ -f /proc/$$/fd/$MENU_FD ]] || {
+    echo "Refusing to modify non-regular menu file: $MENU_FILE" >&2
+    exit 1
+  }
+  MENU_IDENTITY=$(stat -Lc '%d:%i' "/proc/$$/fd/$MENU_FD")
+}
+
+verify_menu_unchanged() {
+  local current_identity=""
+
+  [[ -f $MENU_FILE && ! -L $MENU_FILE ]] || {
+    echo "Menu file changed during update: $MENU_FILE" >&2
+    exit 1
+  }
+  current_identity=$(stat -c '%d:%i' "$MENU_FILE")
+  [[ $current_identity == "$MENU_IDENTITY" ]] || {
+    echo "Menu file changed during update: $MENU_FILE" >&2
+    exit 1
+  }
+}
 
 rewrite_without_entry() {
   local source="$1"
@@ -30,18 +73,11 @@ rewrite_without_entry() {
 }
 
 install_entry() {
-  install -d -m 0755 "$EXTENSIONS_DIR"
-  if [[ ! -e $MENU_FILE ]]; then
-    printf '{\n}\n' > "$MENU_FILE"
-  fi
-  [[ -f $MENU_FILE && ! -L $MENU_FILE ]] || {
-    echo "Refusing to modify non-regular menu file: $MENU_FILE" >&2
-    exit 1
-  }
+  open_menu_snapshot
 
   TEMP_CLEANED=$(mktemp "$EXTENSIONS_DIR/.omarchy-menu.clean.XXXXXX")
   TEMP_STAGED=$(mktemp "$EXTENSIONS_DIR/.omarchy-menu.new.XXXXXX")
-  rewrite_without_entry "$MENU_FILE" "$TEMP_CLEANED"
+  rewrite_without_entry "/proc/$$/fd/$MENU_FD" "$TEMP_CLEANED"
 
   if ! awk -v begin="$MENU_BEGIN" -v end="$MENU_END" '
     { print }
@@ -64,24 +100,23 @@ install_entry() {
     exit 1
   fi
 
-  chmod --reference="$MENU_FILE" "$TEMP_STAGED"
-  mv -f -- "$TEMP_STAGED" "$MENU_FILE"
+  chmod --reference="/proc/$$/fd/$MENU_FD" "$TEMP_STAGED"
+  verify_menu_unchanged
+  mv -fT -- "$TEMP_STAGED" "$MENU_FILE"
   TEMP_STAGED=""
   echo "Added Battery Protection to Trigger > Hardware."
 }
 
 remove_entry() {
-  [[ -e $MENU_FILE ]] || return 0
-  [[ -f $MENU_FILE && ! -L $MENU_FILE ]] || {
-    echo "Refusing to modify non-regular menu file: $MENU_FILE" >&2
-    exit 1
-  }
-  grep -Fq "$MENU_BEGIN" "$MENU_FILE" || return 0
+  [[ -e $MENU_FILE || -L $MENU_FILE ]] || return 0
+  open_menu_snapshot
+  grep -Fq "$MENU_BEGIN" "/proc/$$/fd/$MENU_FD" || return 0
 
   TEMP_STAGED=$(mktemp "$EXTENSIONS_DIR/.omarchy-menu.new.XXXXXX")
-  rewrite_without_entry "$MENU_FILE" "$TEMP_STAGED"
-  chmod --reference="$MENU_FILE" "$TEMP_STAGED"
-  mv -f -- "$TEMP_STAGED" "$MENU_FILE"
+  rewrite_without_entry "/proc/$$/fd/$MENU_FD" "$TEMP_STAGED"
+  chmod --reference="/proc/$$/fd/$MENU_FD" "$TEMP_STAGED"
+  verify_menu_unchanged
+  mv -fT -- "$TEMP_STAGED" "$MENU_FILE"
   TEMP_STAGED=""
   echo "Removed Battery Protection from Trigger > Hardware."
 }

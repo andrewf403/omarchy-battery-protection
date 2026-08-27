@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "andrewf.battery-protection",
   "name": "Battery Protection",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "author": "Andrii F",
   "license": "MIT",
   "description": "Toggle UPower's configured battery charge limit from Trigger or an optional bar icon.",
